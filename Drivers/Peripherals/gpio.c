@@ -1,0 +1,61 @@
+#include "gpio.h"
+
+void gpio_led(void) {
+  // Configure GPIOA mode port for PA5
+  GPIOA->MODER &= ~GPIO_MODER_MODE5;
+  GPIOA->MODER |= GPIO_MODER_MODE5_0;
+}
+
+void gpio_usart2(void) {
+  // Configure PA2, PA3 for USART2
+  GPIOA->MODER &= ~(GPIO_MODER_MODE2 | GPIO_MODER_MODE3);
+  GPIOA->MODER |= (GPIO_MODER_MODE2_1 | GPIO_MODER_MODE3_1);
+
+  // AF7 for pins PA2, PA3
+  GPIOA->AFR[0] &= ~(GPIO_AFRL_AFSEL2 | GPIO_AFRL_AFSEL3);
+  GPIOA->AFR[0] |=
+      ((7U << GPIO_AFRL_AFSEL2_Pos) | (7U << GPIO_AFRL_AFSEL3_Pos));
+}
+
+void gpio_i2c1(void) {
+  // Configure PB8 (SCL), PB9 (SDA) for I2C1
+  GPIOB->MODER &= ~(GPIO_MODER_MODE8 | GPIO_MODER_MODE9);
+  GPIOB->MODER |= ((2U << GPIO_MODER_MODE8_Pos) | (2U << GPIO_MODER_MODE9_Pos));
+
+  GPIOB->AFR[1] &= ~(GPIO_AFRH_AFSEL8 | GPIO_AFRH_AFSEL9);
+  GPIOB->AFR[1] |=
+      ((4U << GPIO_AFRH_AFSEL8_Pos) | (4U << GPIO_AFRH_AFSEL9_Pos));
+
+  GPIOB->OTYPER |= (GPIO_OTYPER_OT8 | GPIO_OTYPER_OT9);
+
+  GPIOB->OSPEEDR &= ~((GPIO_OSPEEDR_OSPEED8) | (GPIO_OSPEEDR_OSPEED9));
+  GPIOB->OSPEEDR |=
+      ((3U << GPIO_OSPEEDR_OSPEED8_Pos) | (3U << GPIO_OSPEEDR_OSPEED9_Pos));
+
+  GPIOB->PUPDR &= ~((GPIO_PUPDR_PUPD8) | (GPIO_PUPDR_PUPD9));
+  GPIOB->PUPDR |= ((1U << GPIO_PUPDR_PUPD8_Pos) | (1U << GPIO_PUPDR_PUPD9_Pos));
+}
+
+void gpio_timer5(void) {
+  // Configure PA1 for TMC2209 step pin
+  GPIOA->MODER &= ~GPIO_MODER_MODE1;
+  GPIOA->MODER |= GPIO_MODER_MODE1_1;
+
+  GPIOA->AFR[0] &= ~GPIO_AFRL_AFSEL1;
+  GPIOA->AFR[0] |= (2U << GPIO_AFRL_AFSEL1_Pos);
+
+  // Configure PB2 for TMC2209 dir pin
+  GPIOB->MODER &= ~GPIO_MODER_MODE2;
+  GPIOB->MODER |= GPIO_MODER_MODE2_0;
+}
+
+void gpio_init(void) {
+  // Enable clock access to GPIO A,B
+  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+
+  gpio_led();
+  gpio_usart2();
+  gpio_i2c1();
+  gpio_timer5();
+}
