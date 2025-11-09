@@ -20,8 +20,8 @@ static uint16_t calculate_initial_delay(MotorProfile_t *motor) {
 }
 
 static void calculate_motion_profile(MotorProfile_t *motor) {
-  float steps_to_run =
-      (motor->max_speed * motor->max_speed) / (2 * ALPHA * motor->accel_rate);
+  float steps_to_run = (motor->max_speed * motor->max_speed) /
+                       (2.0f * ALPHA * motor->accel_rate);
 
   float steps_to_decel = motor->total_steps - steps_to_run;
 

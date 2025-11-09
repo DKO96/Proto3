@@ -26,6 +26,12 @@ void TIM7_IRQHandler(void) {
   read_flag = 1;
 }
 
+void TIM1_UP_TIM10_IRQHandler(void) {
+  if (TIM1->SR & TIM_SR_UIF) {
+    TIM1->SR &= ~TIM_SR_UIF;
+  }
+}
+
 int main() {
   // Initialize board
   system_init();
@@ -34,6 +40,7 @@ int main() {
   i2c_init(I2C1);
   timer_pwm_init(TIM5);
   timer_isr_init();
+  timer_master_init();
 
   // Initialize hardware
   as_init(I2C1);
@@ -41,15 +48,14 @@ int main() {
   // Configure motion
   GPIOB->ODR |= GPIO_ODR_OD2;
 
-  motor_init((MotorProfile_t *)&motor, 30, 60, 74);
-
-  start_motion((MotorProfile_t *)&motor, TIM5, 6400);
+  // motor_init((MotorProfile_t *)&motor, 30, 60, 74);
+  // start_motion((MotorProfile_t *)&motor, TIM5, 1305);
 
   while (1) {
-    if (read_flag) {
-      printI(motor.step_count);
-      printS("\r\n");
-    }
+    // if (read_flag) {
+    //   printI(motor.step_count);
+    //   printS("\r\n");
+    // }
   }
 
   return 0;
