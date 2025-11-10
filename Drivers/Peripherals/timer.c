@@ -9,8 +9,8 @@
 void timer_master_init(void) {
   RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
 
-  TIM1->PSC = 8999;
-  TIM1->ARR = 19999;
+  TIM1->PSC = 179;
+  TIM1->ARR = 999;
 
   TIM1->CR1 |= TIM_CR1_ARPE;
   TIM1->EGR |= TIM_EGR_UG;

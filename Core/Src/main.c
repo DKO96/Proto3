@@ -4,18 +4,15 @@
 #include "task.h"
 
 volatile MotorProfile_t motor = {0};
-void TIM5_IRQHandler(void) {
-  if (TIM5->SR & TIM_SR_CC2IF) {
-    TIM5->SR &= ~TIM_SR_CC2IF;
-  }
+volatile int motor_substeps = 0;
+volatile int motor_ratio_master = 3;
+volatile int motor_ratio_slave = 2;
+volatile int motor_accumulator = 0;
 
-  motor_process_step((MotorProfile_t *)&motor);
-
-  TIM5->ARR = motor.step_delay;
-
-  if (motor.state == MOTOR_STATE_STOP) {
-    TIM5->CR1 &= ~TIM_CR1_CEN;
-  }
+void step_motor(void) {
+  GPIOA->BSRR = GPIO_BSRR_BS4;
+  delay_us(1);
+  GPIOA->BSRR = GPIO_BSRR_BR4;
 }
 
 volatile uint8_t read_flag = 0;
@@ -30,6 +27,22 @@ void TIM1_UP_TIM10_IRQHandler(void) {
   if (TIM1->SR & TIM_SR_UIF) {
     TIM1->SR &= ~TIM_SR_UIF;
   }
+
+  motor_process_step((MotorProfile_t *)&motor);
+
+  TIM1->ARR = motor.step_delay;
+
+  motor_accumulator += motor_ratio_slave;
+
+  if (motor_accumulator >= motor_ratio_master) {
+    step_motor();
+    motor_substeps++;
+    motor_accumulator -= motor_ratio_master;
+  }
+
+  if (motor.state == MOTOR_STATE_STOP) {
+    TIM1->CR1 &= ~TIM_CR1_CEN;
+  }
 }
 
 int main() {
@@ -38,9 +51,8 @@ int main() {
   gpio_init();
   uart_init(USART2);
   i2c_init(I2C1);
-  timer_pwm_init(TIM5);
-  timer_isr_init();
   timer_master_init();
+  timer_isr_init();
 
   // Initialize hardware
   as_init(I2C1);
@@ -48,14 +60,14 @@ int main() {
   // Configure motion
   GPIOB->ODR |= GPIO_ODR_OD2;
 
-  // motor_init((MotorProfile_t *)&motor, 30, 60, 74);
-  // start_motion((MotorProfile_t *)&motor, TIM5, 1305);
+  motor_init((MotorProfile_t *)&motor, 25, 100, 75);
+  start_motion((MotorProfile_t *)&motor, TIM1, 4800);
 
   while (1) {
-    // if (read_flag) {
-    //   printI(motor.step_count);
-    //   printS("\r\n");
-    // }
+    if (read_flag) {
+      printI(motor_substeps);
+      printS("\r\n");
+    }
   }
 
   return 0;

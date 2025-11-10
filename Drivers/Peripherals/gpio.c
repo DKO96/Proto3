@@ -37,12 +37,23 @@ void gpio_i2c1(void) {
 }
 
 void gpio_timer5(void) {
-  // Configure PA1 for TMC2209 step pin
-  GPIOA->MODER &= ~GPIO_MODER_MODE1;
-  GPIOA->MODER |= GPIO_MODER_MODE1_1;
+  // // Configure PA1 for TMC2209 step pin
+  // GPIOA->MODER &= ~GPIO_MODER_MODE1;
+  // GPIOA->MODER |= GPIO_MODER_MODE1_1;
 
-  GPIOA->AFR[0] &= ~GPIO_AFRL_AFSEL1;
-  GPIOA->AFR[0] |= (2U << GPIO_AFRL_AFSEL1_Pos);
+  // GPIOA->AFR[0] &= ~GPIO_AFRL_AFSEL1;
+  // GPIOA->AFR[0] |= (2U << GPIO_AFRL_AFSEL1_Pos);
+
+  // Configure PA4 for TMC2209 step pin
+  GPIOA->MODER &= ~GPIO_MODER_MODE4;
+  GPIOA->MODER |= GPIO_MODER_MODE4_0;
+
+  GPIOA->OTYPER &= ~GPIO_OTYPER_OT4;
+
+  GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED4;
+  GPIOA->OSPEEDR |= (3U << GPIO_OSPEEDR_OSPEED4_Pos);
+
+  GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD4;
 
   // Configure PB2 for TMC2209 dir pin
   GPIOB->MODER &= ~GPIO_MODER_MODE2;
