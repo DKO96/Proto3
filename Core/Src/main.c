@@ -4,16 +4,8 @@
 #include "task.h"
 
 volatile MotorProfile_t motor = {0};
-volatile int motor_substeps = 0;
-volatile int motor_ratio_master = 3;
-volatile int motor_ratio_slave = 2;
-volatile int motor_accumulator = 0;
-
-void step_motor(void) {
-  GPIOA->BSRR = GPIO_BSRR_BS4;
-  delay_us(1);
-  GPIOA->BSRR = GPIO_BSRR_BR4;
-}
+volatile StepperProfile_t nema0 = {0};
+volatile StepperProfile_t nema1 = {0};
 
 volatile uint8_t read_flag = 0;
 void TIM7_IRQHandler(void) {
@@ -29,16 +21,9 @@ void TIM1_UP_TIM10_IRQHandler(void) {
   }
 
   motor_process_step((MotorProfile_t *)&motor);
-
   TIM1->ARR = motor.step_delay;
-
-  motor_accumulator += motor_ratio_slave;
-
-  if (motor_accumulator >= motor_ratio_master) {
-    step_motor();
-    motor_substeps++;
-    motor_accumulator -= motor_ratio_master;
-  }
+  step_motor((StepperProfile_t *)&nema0);
+  step_motor((StepperProfile_t *)&nema1);
 
   if (motor.state == MOTOR_STATE_STOP) {
     TIM1->CR1 &= ~TIM_CR1_CEN;
@@ -59,13 +44,19 @@ int main() {
 
   // Configure motion
   GPIOB->ODR |= GPIO_ODR_OD2;
+  GPIOB->ODR |= GPIO_ODR_OD1;
 
-  motor_init((MotorProfile_t *)&motor, 25, 100, 75);
-  start_motion((MotorProfile_t *)&motor, TIM1, 4800);
+  stepper_init((StepperProfile_t *)&nema0, STEPPER_0, 2, 1);
+  stepper_init((StepperProfile_t *)&nema1, STEPPER_1, 4, 1);
+
+  master_init((MotorProfile_t *)&motor, 25, 100, 75);
+  start_motion((MotorProfile_t *)&motor, TIM1, 12800);
 
   while (1) {
     if (read_flag) {
-      printI(motor_substeps);
+      printI(nema0.motor_substeps);
+      printS(" ");
+      printI(nema1.motor_substeps);
       printS("\r\n");
     }
   }

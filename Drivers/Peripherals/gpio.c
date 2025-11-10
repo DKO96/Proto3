@@ -36,14 +36,7 @@ void gpio_i2c1(void) {
   GPIOB->PUPDR |= ((1U << GPIO_PUPDR_PUPD8_Pos) | (1U << GPIO_PUPDR_PUPD9_Pos));
 }
 
-void gpio_timer5(void) {
-  // // Configure PA1 for TMC2209 step pin
-  // GPIOA->MODER &= ~GPIO_MODER_MODE1;
-  // GPIOA->MODER |= GPIO_MODER_MODE1_1;
-
-  // GPIOA->AFR[0] &= ~GPIO_AFRL_AFSEL1;
-  // GPIOA->AFR[0] |= (2U << GPIO_AFRL_AFSEL1_Pos);
-
+void gpio_stepper1(void) {
   // Configure PA4 for TMC2209 step pin
   GPIOA->MODER &= ~GPIO_MODER_MODE4;
   GPIOA->MODER |= GPIO_MODER_MODE4_0;
@@ -60,6 +53,23 @@ void gpio_timer5(void) {
   GPIOB->MODER |= GPIO_MODER_MODE2_0;
 }
 
+void gpio_stepper2(void) {
+  // Configure PA1 for TMC2209 step pin
+  GPIOA->MODER &= ~GPIO_MODER_MODE1;
+  GPIOA->MODER |= GPIO_MODER_MODE1_0;
+
+  GPIOA->OTYPER &= ~GPIO_OTYPER_OT1;
+
+  GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED1;
+  GPIOA->OSPEEDR |= (3U << GPIO_OSPEEDR_OSPEED1_Pos);
+
+  GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD1;
+
+  // Configure PB1 for TMC2209 dir pin
+  GPIOB->MODER &= ~GPIO_MODER_MODE1;
+  GPIOB->MODER |= GPIO_MODER_MODE1_0;
+}
+
 void gpio_init(void) {
   // Enable clock access to GPIO A,B
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
@@ -68,5 +78,6 @@ void gpio_init(void) {
   gpio_led();
   gpio_usart2();
   gpio_i2c1();
-  gpio_timer5();
+  gpio_stepper1();
+  gpio_stepper2();
 }

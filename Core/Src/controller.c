@@ -2,12 +2,14 @@
 
 #include <math.h>
 
+#include "main.h"
+
 #define INIT_CONST 0.676
 #define TIMER_FREQ 1000000
 #define ALPHA 0.00196
 
-void motor_init(MotorProfile_t *motor, float max_speed, uint16_t accel_rate,
-                uint16_t min_delay) {
+void master_init(MotorProfile_t *motor, float max_speed, uint16_t accel_rate,
+                 uint16_t min_delay) {
   motor->max_speed = max_speed;
   motor->accel_rate = accel_rate;
   motor->min_delay = min_delay;
@@ -102,5 +104,38 @@ void motor_process_step(MotorProfile_t *motor) {
     default:
       motor->state = MOTOR_STATE_STOP;
       break;
+  }
+}
+
+void stepper_init(StepperProfile_t *nema, Stepper_t motor, int master,
+                  int slave) {
+  nema->stepper = motor;
+  nema->motor_ratio_master = master;
+  nema->motor_ratio_slave = slave;
+  nema->motor_accumulator = 0;
+  nema->motor_substeps = 0;
+}
+
+void step_motor(StepperProfile_t *nema) {
+  nema->motor_accumulator += nema->motor_ratio_slave;
+
+  if (nema->motor_accumulator >= nema->motor_ratio_master) {
+    switch (nema->stepper) {
+      case STEPPER_0:
+        GPIOA->BSRR = GPIO_BSRR_BS4;
+        delay_us(1);
+        GPIOA->BSRR = GPIO_BSRR_BR4;
+        break;
+      case STEPPER_1:
+        GPIOA->BSRR = GPIO_BSRR_BS1;
+        delay_us(1);
+        GPIOA->BSRR = GPIO_BSRR_BR1;
+        break;
+      default:
+        break;
+    }
+
+    nema->motor_substeps++;
+    nema->motor_accumulator -= nema->motor_ratio_master;
   }
 }
