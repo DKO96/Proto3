@@ -6,13 +6,24 @@
 #include "stm32f446xx.h"
 
 typedef struct {
+  GPIO_TypeDef *port;
+  uint8_t pin;
+} PinConfig_t;
+
+typedef struct {
+  PinConfig_t step;
+  PinConfig_t dir;
+} StepperPins_t;
+
+typedef struct {
   // Stepper info
   GPIO_TypeDef *GPIO_STEP;
-  long unsigned int pin_set_mask;
-  long unsigned int pin_reset_mask;
+  long unsigned int pin_step_set;
+  long unsigned int pin_step_reset;
 
   GPIO_TypeDef *GPIO_DIR;
-  long unsigned int pin_dir_mask;
+  long unsigned int pin_dir_set;
+  long unsigned int pin_dir_reset;
 
   // Step Counter
   int motor_ratio_master;
@@ -21,7 +32,6 @@ typedef struct {
 
   // Debug
   int motor_step_count;
-
 } StepperProfile_t;
 
 typedef enum {
@@ -62,10 +72,9 @@ void start_motion(MotorProfile_t *motor, TIM_TypeDef *TIMx,
                   uint32_t total_steps);
 void motor_process_step(MotorProfile_t *motor);
 
-void stepper_init(StepperProfile_t *nema, GPIO_TypeDef *gpio_step,
-                  GPIO_TypeDef *gpio_dir, long unsigned int pin_set,
-                  long unsigned int pin_reset, long unsigned int pin_dir);
-void configure_stepper(StepperProfile_t *nema, int master, int slave);
-void step_motor(StepperProfile_t *nema);
+void stepper_init(volatile StepperProfile_t *nema, StepperPins_t *pins);
+void configure_stepper(volatile StepperProfile_t *nema, uint8_t direction,
+                       int master, int slave);
+void step_motor(volatile StepperProfile_t *nema);
 
 #endif /* MOTOR_CONTROL_H */
