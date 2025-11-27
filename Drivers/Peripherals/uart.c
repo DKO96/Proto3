@@ -17,6 +17,9 @@ void uart_init(USART_TypeDef *UARTx) {
   UARTx->CR1 |= USART_CR1_TE;  // enable transmit
   UARTx->CR1 |= USART_CR1_RE;  // enable receive
   UARTx->CR1 |= USART_CR1_UE;  // enable UARTx
+
+  NVIC_SetPriority(USART2_IRQn, 5);
+  NVIC_EnableIRQ(USART2_IRQn);
 }
 
 void usart2_write(int ch) {
