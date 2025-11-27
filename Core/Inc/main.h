@@ -9,9 +9,6 @@
 #include "timer.h"
 #include "uart.h"
 
-// Hardware
-#include "as5600.h"
-
 // Motor
 #include "controller.h"
 

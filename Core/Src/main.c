@@ -4,6 +4,9 @@
 #include "task.h"
 
 #define NUM_MOTORS 3
+#define MAX_SPEED 25
+#define ACCELERATION 75
+#define MIN_DELAY 75
 
 volatile MotorProfile_t motor = {0};
 volatile StepperProfile_t motors[NUM_MOTORS] = {0};
@@ -49,7 +52,7 @@ int main() {
 
   // Start move
   timer_master_init();
-  master_init((MotorProfile_t *)&motor, 25, 65, 75);
+  master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION, MIN_DELAY);
   start_motion((MotorProfile_t *)&motor, TIM1, 16000);
 
   while (1) {
