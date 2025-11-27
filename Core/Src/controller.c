@@ -107,35 +107,32 @@ void motor_process_step(MotorProfile_t *motor) {
   }
 }
 
-void stepper_init(StepperProfile_t *nema, Stepper_t motor, int master,
-                  int slave) {
-  nema->stepper = motor;
+void stepper_init(StepperProfile_t *nema, GPIO_TypeDef *gpio_step,
+                  GPIO_TypeDef *gpio_dir, long unsigned int pin_set,
+                  long unsigned int pin_reset, long unsigned int pin_dir) {
+  nema->GPIO_STEP = gpio_step;
+  nema->GPIO_DIR = gpio_dir;
+  nema->pin_set_mask = pin_set;
+  nema->pin_reset_mask = pin_reset;
+  nema->pin_dir_mask = pin_dir;
+}
+
+void configure_stepper(StepperProfile_t *nema, int master, int slave) {
   nema->motor_ratio_master = master;
   nema->motor_ratio_slave = slave;
   nema->motor_accumulator = 0;
-  nema->motor_substeps = 0;
+  nema->motor_step_count = 0;
 }
 
 void step_motor(StepperProfile_t *nema) {
   nema->motor_accumulator += nema->motor_ratio_slave;
 
   if (nema->motor_accumulator >= nema->motor_ratio_master) {
-    switch (nema->stepper) {
-      case STEPPER_0:
-        GPIOA->BSRR = GPIO_BSRR_BS4;
-        delay_us(1);
-        GPIOA->BSRR = GPIO_BSRR_BR4;
-        break;
-      case STEPPER_1:
-        GPIOA->BSRR = GPIO_BSRR_BS1;
-        delay_us(1);
-        GPIOA->BSRR = GPIO_BSRR_BR1;
-        break;
-      default:
-        break;
-    }
+    nema->GPIO_STEP->BSRR = nema->pin_set_mask;
+    delay_us(1);
+    nema->GPIO_STEP->BSRR = nema->pin_reset_mask;
 
-    nema->motor_substeps++;
+    nema->motor_step_count++;
     nema->motor_accumulator -= nema->motor_ratio_master;
   }
 }

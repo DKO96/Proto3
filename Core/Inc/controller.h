@@ -5,19 +5,14 @@
 
 #include "stm32f446xx.h"
 
-typedef enum {
-  STEPPER_0,
-  STEPPER_1,
-  STEPPER_2,
-  STEPPER_3,
-  STEPPER_4,
-  STEPPER_5
-} Stepper_t;
-
 typedef struct {
   // Stepper info
-  Stepper_t stepper;
-  GPIO_TypeDef GPIOx;
+  GPIO_TypeDef *GPIO_STEP;
+  long unsigned int pin_set_mask;
+  long unsigned int pin_reset_mask;
+
+  GPIO_TypeDef *GPIO_DIR;
+  long unsigned int pin_dir_mask;
 
   // Step Counter
   int motor_ratio_master;
@@ -25,7 +20,7 @@ typedef struct {
   int motor_accumulator;
 
   // Debug
-  int motor_substeps;
+  int motor_step_count;
 
 } StepperProfile_t;
 
@@ -67,8 +62,10 @@ void start_motion(MotorProfile_t *motor, TIM_TypeDef *TIMx,
                   uint32_t total_steps);
 void motor_process_step(MotorProfile_t *motor);
 
-void stepper_init(StepperProfile_t *nema, Stepper_t motor, int master,
-                  int slave);
+void stepper_init(StepperProfile_t *nema, GPIO_TypeDef *gpio_step,
+                  GPIO_TypeDef *gpio_dir, long unsigned int pin_set,
+                  long unsigned int pin_reset, long unsigned int pin_dir);
+void configure_stepper(StepperProfile_t *nema, int master, int slave);
 void step_motor(StepperProfile_t *nema);
 
 #endif /* MOTOR_CONTROL_H */

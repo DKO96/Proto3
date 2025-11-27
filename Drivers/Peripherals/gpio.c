@@ -37,24 +37,24 @@ void gpio_i2c1(void) {
 }
 
 void gpio_stepper1(void) {
-  // Configure PA4 for TMC2209 step pin
-  GPIOA->MODER &= ~GPIO_MODER_MODE4;
-  GPIOA->MODER |= GPIO_MODER_MODE4_0;
+  // Configure PA0 for TMC2209(1) step pin
+  GPIOA->MODER &= ~GPIO_MODER_MODE0;
+  GPIOA->MODER |= GPIO_MODER_MODE0_0;
 
-  GPIOA->OTYPER &= ~GPIO_OTYPER_OT4;
+  GPIOA->OTYPER &= ~GPIO_OTYPER_OT0;
 
-  GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED4;
-  GPIOA->OSPEEDR |= (3U << GPIO_OSPEEDR_OSPEED4_Pos);
+  GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED0;
+  GPIOA->OSPEEDR |= (3U << GPIO_OSPEEDR_OSPEED0_Pos);
 
-  GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD4;
+  GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD0;
 
-  // Configure PB2 for TMC2209 dir pin
+  // Configure PB2 for TMC2209(2) dir pin
   GPIOB->MODER &= ~GPIO_MODER_MODE2;
   GPIOB->MODER |= GPIO_MODER_MODE2_0;
 }
 
 void gpio_stepper2(void) {
-  // Configure PA1 for TMC2209 step pin
+  // Configure PA1 for TMC2209(2) step pin
   GPIOA->MODER &= ~GPIO_MODER_MODE1;
   GPIOA->MODER |= GPIO_MODER_MODE1_0;
 
@@ -65,9 +65,26 @@ void gpio_stepper2(void) {
 
   GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD1;
 
-  // Configure PB1 for TMC2209 dir pin
+  // Configure PB1 for TMC2209(1) dir pin
   GPIOB->MODER &= ~GPIO_MODER_MODE1;
   GPIOB->MODER |= GPIO_MODER_MODE1_0;
+}
+
+void gpio_stepper3(void) {
+  // Configure PA4 for TMC2209(3) step pin
+  GPIOA->MODER &= ~GPIO_MODER_MODE4;
+  GPIOA->MODER |= GPIO_MODER_MODE4_0;
+
+  GPIOA->OTYPER &= ~GPIO_OTYPER_OT4;
+
+  GPIOA->OSPEEDR &= ~GPIO_OSPEEDR_OSPEED4;
+  GPIOA->OSPEEDR |= (3U << GPIO_OSPEEDR_OSPEED4_Pos);
+
+  GPIOA->PUPDR &= ~GPIO_PUPDR_PUPD4;
+
+  // Configure PB15 for TMC2209(3) dir pin
+  GPIOB->MODER &= ~GPIO_MODER_MODE15;
+  GPIOB->MODER |= GPIO_MODER_MODE15_0;
 }
 
 void gpio_init(void) {
@@ -80,4 +97,5 @@ void gpio_init(void) {
   gpio_i2c1();
   gpio_stepper1();
   gpio_stepper2();
+  gpio_stepper3();
 }
