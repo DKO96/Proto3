@@ -4,16 +4,18 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "semphr.h"
 #include "task.h"
 
 #define NUM_MOTORS 3
-#define MAX_SPEED 25
+#define MAX_SPEED 26
 #define ACCELERATION 75
 #define MIN_DELAY 75
 
 volatile MotorProfile_t motor = {0};
 volatile StepperProfile_t motors[NUM_MOTORS] = {0};
 QueueHandle_t xUARTQueue;
+SemaphoreHandle_t xTIMSemaphore;
 
 void USART2_IRQHandler(void) {
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -30,6 +32,8 @@ void TIM1_UP_TIM10_IRQHandler(void) {
     TIM1->SR &= ~TIM_SR_UIF;
   }
 
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
   motor_process_step((MotorProfile_t *)&motor);
   TIM1->ARR = motor.step_delay;
 
@@ -39,6 +43,8 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
   if (motor.state == MOTOR_STATE_STOP) {
     TIM1->CR1 &= ~TIM_CR1_CEN;
+    xSemaphoreGiveFromISR(xTIMSemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
 
@@ -49,32 +55,41 @@ void vMotorTask(void *pvParameters) {
   int value;
 
   for (;;) {
-    xQueueReceive(xUARTQueue, &receivedChar, portMAX_DELAY);
+    printS("waiting on semaphore\r\n");
+    xSemaphoreTake(xTIMSemaphore, portMAX_DELAY);
+    printS("received semaphore\r\n");
 
-    // Checks for end of line
-    if (receivedChar == '\r' || receivedChar == '\n') {
-      buffer[bufferIndex] = '\0';
-      printS("\r\n");
+    while (1) {
+      xQueueReceive(xUARTQueue, &receivedChar, portMAX_DELAY);
 
-      value = atoi(buffer);
+      // Checks for end of line
+      if (receivedChar == '\r' || receivedChar == '\n') {
+        buffer[bufferIndex] = '\0';
+        printS("\r\n");
 
-      // Configure stepper
-      configure_stepper((StepperProfile_t *)&motors[0], 0, 1, 1);
-      configure_stepper((StepperProfile_t *)&motors[1], 0, 5, 3);
-      configure_stepper((StepperProfile_t *)&motors[2], 0, 5, 1);
+        value = atoi(buffer);
+        printS("starting task - steps: ");
+        printI(value);
+        printS("\r\n");
 
-      // Start move
-      timer_master_init();
-      master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION, MIN_DELAY);
-      start_motion((MotorProfile_t *)&motor, TIM1, value);
+        // Configure stepper
+        configure_stepper((StepperProfile_t *)&motors[0], 1, 1, 1);
+        configure_stepper((StepperProfile_t *)&motors[1], 0, 5, 0);
+        configure_stepper((StepperProfile_t *)&motors[2], 0, 5, 0);
 
-      bufferIndex = 0;
-      continue;
-    }
+        // Start move
+        master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION,
+                    MIN_DELAY);
+        start_motion((MotorProfile_t *)&motor, TIM1, value);
 
-    usart2_write(receivedChar);
-    if (bufferIndex < sizeof(buffer) - 1) {
-      buffer[bufferIndex++] = receivedChar;
+        bufferIndex = 0;
+        break;
+      }
+
+      usart2_write(receivedChar);
+      if (bufferIndex < sizeof(buffer) - 1) {
+        buffer[bufferIndex++] = receivedChar;
+      }
     }
   }
 }
@@ -84,6 +99,7 @@ int main() {
   system_init();
   gpio_init();
   uart_init(USART2);
+  timer_master_init();
 
   // Initialize stepper motor
   StepperPins_t motor_pins[] = {
@@ -97,6 +113,9 @@ int main() {
   }
 
   xUARTQueue = xQueueCreate(100, sizeof(uint8_t));
+  xTIMSemaphore = xSemaphoreCreateBinary();
+
+  xSemaphoreGive(xTIMSemaphore);
   xTaskCreate(vMotorTask, "Motor", 1000, NULL, 1, NULL);
 
   vTaskStartScheduler();

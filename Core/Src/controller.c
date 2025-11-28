@@ -51,6 +51,7 @@ void start_motion(MotorProfile_t *motor, TIM_TypeDef *TIMx,
   // Start motor
   motor->state = MOTOR_STATE_ACCEL;
   TIMx->ARR = motor->step_delay;
+  printS("start timer 1\r\n");
   TIMx->CR1 |= TIM_CR1_CEN;
 }
 
