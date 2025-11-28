@@ -27,10 +27,16 @@ void USART2_IRQHandler(void) {
   }
 }
 
+volatile uint32_t isr_count = 0;
 void TIM1_UP_TIM10_IRQHandler(void) {
   if (TIM1->SR & TIM_SR_UIF) {
     TIM1->SR &= ~TIM_SR_UIF;
   }
+
+  printS("isr: ");
+  printI(isr_count);
+  printS("\r\n");
+  isr_count++;
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
@@ -42,6 +48,7 @@ void TIM1_UP_TIM10_IRQHandler(void) {
   }
 
   if (motor.state == MOTOR_STATE_STOP) {
+    printS("stop motion\r\n");
     TIM1->CR1 &= ~TIM_CR1_CEN;
     xSemaphoreGiveFromISR(xTIMSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -55,18 +62,17 @@ void vMotorTask(void *pvParameters) {
   int value;
 
   for (;;) {
-    printS("waiting on semaphore\r\n");
-    xSemaphoreTake(xTIMSemaphore, portMAX_DELAY);
-    printS("received semaphore\r\n");
+    xQueueReceive(xUARTQueue, &receivedChar, portMAX_DELAY);
 
-    while (1) {
-      xQueueReceive(xUARTQueue, &receivedChar, portMAX_DELAY);
+    // Checks for end of line
+    if (receivedChar == '\r' || receivedChar == '\n') {
+      buffer[bufferIndex] = '\0';
+      printS("\r\n");
 
-      // Checks for end of line
-      if (receivedChar == '\r' || receivedChar == '\n') {
-        buffer[bufferIndex] = '\0';
-        printS("\r\n");
-
+      if (bufferIndex > 0) {
+        printS("waiting on semaphore\r\n");
+        xSemaphoreTake(xTIMSemaphore, portMAX_DELAY);
+        printS("received semaphore\r\n");
         value = atoi(buffer);
         printS("starting task - steps: ");
         printI(value);
@@ -81,15 +87,15 @@ void vMotorTask(void *pvParameters) {
         master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION,
                     MIN_DELAY);
         start_motion((MotorProfile_t *)&motor, TIM1, value);
-
-        bufferIndex = 0;
-        break;
       }
 
-      usart2_write(receivedChar);
-      if (bufferIndex < sizeof(buffer) - 1) {
-        buffer[bufferIndex++] = receivedChar;
-      }
+      bufferIndex = 0;
+      continue;
+    }
+
+    usart2_write(receivedChar);
+    if (bufferIndex < sizeof(buffer) - 1) {
+      buffer[bufferIndex++] = receivedChar;
     }
   }
 }
