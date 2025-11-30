@@ -1,5 +1,6 @@
 #include "main.h"
 
+#include <math.h>
 #include <stdlib.h>
 
 #include "FreeRTOS.h"
@@ -11,32 +12,29 @@
 #define MAX_SPEED 26
 #define ACCELERATION 75
 #define MIN_DELAY 75
+#define LINK_1 52
+#define LINK_2 100
+
+typedef struct {
+  float x;
+  float y;
+  float z;
+} WaypointData_t;
+
+typedef struct {
+  float t[3];
+} AngleData_t;
 
 volatile MotorProfile_t motor = {0};
 volatile StepperProfile_t motors[NUM_MOTORS] = {0};
-QueueHandle_t xUARTQueue;
-SemaphoreHandle_t xTIMSemaphore;
+QueueHandle_t xWaypointQueue;
+QueueHandle_t xIKQueue;
+SemaphoreHandle_t xMotorSemaphore;
 
-void USART2_IRQHandler(void) {
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-  if (USART2->SR & USART_SR_RXNE) {
-    uint8_t ch = USART2->DR;
-    xQueueSendFromISR(xUARTQueue, &ch, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-  }
-}
-
-volatile uint32_t isr_count = 0;
 void TIM1_UP_TIM10_IRQHandler(void) {
   if (TIM1->SR & TIM_SR_UIF) {
     TIM1->SR &= ~TIM_SR_UIF;
   }
-
-  printS("isr: ");
-  printI(isr_count);
-  printS("\r\n");
-  isr_count++;
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
@@ -48,55 +46,84 @@ void TIM1_UP_TIM10_IRQHandler(void) {
   }
 
   if (motor.state == MOTOR_STATE_STOP) {
-    printS("stop motion\r\n");
     TIM1->CR1 &= ~TIM_CR1_CEN;
-    xSemaphoreGiveFromISR(xTIMSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xMotorSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
 }
 
-void vMotorTask(void *pvParameters) {
-  uint8_t receivedChar;
-  char buffer[100];
-  int bufferIndex = 0;
-  int value;
+void vWaypointTask(void *pvParameters) {
+  WaypointData_t waypoints[] = {
+      {100.0f, 50.0f, 52.0f},
+  };
 
   for (;;) {
-    xQueueReceive(xUARTQueue, &receivedChar, portMAX_DELAY);
+    for (uint8_t i = 0; i < sizeof(waypoints) / sizeof(waypoints[0]); i++) {
+      xQueueSend(xWaypointQueue, &waypoints[i], portMAX_DELAY);
+    }
+  }
+}
 
-    // Checks for end of line
-    if (receivedChar == '\r' || receivedChar == '\n') {
-      buffer[bufferIndex] = '\0';
-      printS("\r\n");
+void vIKTask(void *pvParameters) {
+  WaypointData_t xReceivedWaypoint;
+  float x, y, z;
+  AngleData_t angles;
 
-      if (bufferIndex > 0) {
-        printS("waiting on semaphore\r\n");
-        xSemaphoreTake(xTIMSemaphore, portMAX_DELAY);
-        printS("received semaphore\r\n");
-        value = atoi(buffer);
-        printS("starting task - steps: ");
-        printI(value);
-        printS("\r\n");
+  for (;;) {
+    xQueueReceive(xWaypointQueue, &xReceivedWaypoint, portMAX_DELAY);
 
-        // Configure stepper
-        configure_stepper((StepperProfile_t *)&motors[0], 1, 1, 1);
-        configure_stepper((StepperProfile_t *)&motors[1], 0, 5, 0);
-        configure_stepper((StepperProfile_t *)&motors[2], 0, 5, 0);
+    x = xReceivedWaypoint.x;
+    y = xReceivedWaypoint.y;
+    z = xReceivedWaypoint.z;
 
-        // Start move
-        master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION,
-                    MIN_DELAY);
-        start_motion((MotorProfile_t *)&motor, TIM1, value);
+    float r = sqrtf(x * x + y * y);
+    float cos_t2 = (r * r + z * z - LINK_1 * LINK_1 - LINK_2 * LINK_2) /
+                   (2 * LINK_1 * LINK_2);
+
+    if (fabsf(cos_t2) > 1) continue;
+
+    angles.t[2] = -acosf(cos_t2);
+
+    angles.t[1] = atan2f(z, r) - atan2f(LINK_2 * sinf(angles.t[2]),
+                                        LINK_1 + LINK_2 * cosf(angles.t[2]));
+
+    angles.t[0] = atan2f(y, x);
+
+    xQueueSend(xIKQueue, &angles, portMAX_DELAY);
+  }
+}
+
+void vMotorTask(void *pvParameters) {
+  AngleData_t xReceivedAngle;
+  int steps[NUM_MOTORS];
+  int max_steps = 0;
+
+  for (;;) {
+    xQueueReceive(xIKQueue, &xReceivedAngle, portMAX_DELAY);
+
+    for (uint8_t i = 0; i < NUM_MOTORS; i++) {
+      steps[i] =
+          angle_to_steps((StepperProfile_t *)&motors[i], xReceivedAngle.t[i]);
+
+      if (abs(steps[i]) > max_steps) {
+        max_steps = abs(steps[i]);
       }
-
-      bufferIndex = 0;
-      continue;
     }
 
-    usart2_write(receivedChar);
-    if (bufferIndex < sizeof(buffer) - 1) {
-      buffer[bufferIndex++] = receivedChar;
+    xSemaphoreTake(xMotorSemaphore, portMAX_DELAY);
+
+    for (uint8_t i = 0; i < NUM_MOTORS; i++) {
+      uint8_t direction = (steps[i] >= 0) ? 1 : 0;
+      int slave_ratio = abs(steps[i]);
+      int master_ratio = max_steps;
+
+      configure_stepper((StepperProfile_t *)&motors[i], direction, master_ratio,
+                        slave_ratio);
     }
+
+    // Start move
+    master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION, MIN_DELAY);
+    start_motion((MotorProfile_t *)&motor, TIM1, max_steps);
   }
 }
 
@@ -118,11 +145,15 @@ int main() {
     stepper_init((StepperProfile_t *)&motors[i], &motor_pins[i]);
   }
 
-  xUARTQueue = xQueueCreate(100, sizeof(uint8_t));
-  xTIMSemaphore = xSemaphoreCreateBinary();
+  xWaypointQueue = xQueueCreate(3, sizeof(WaypointData_t));
+  xIKQueue = xQueueCreate(2, sizeof(AngleData_t));
 
-  xSemaphoreGive(xTIMSemaphore);
-  xTaskCreate(vMotorTask, "Motor", 1000, NULL, 1, NULL);
+  xMotorSemaphore = xSemaphoreCreateBinary();
+  xSemaphoreGive(xMotorSemaphore);
+
+  xTaskCreate(vWaypointTask, "Waypoint", 1000, NULL, 1, NULL);
+  xTaskCreate(vIKTask, "IK", 1000, NULL, 2, NULL);
+  xTaskCreate(vMotorTask, "Motor", 1000, NULL, 3, NULL);
 
   vTaskStartScheduler();
 

@@ -32,6 +32,7 @@ typedef struct {
 
   // Debug
   int motor_step_count;
+  uint8_t motor_direction;
 } StepperProfile_t;
 
 typedef enum {
@@ -76,5 +77,7 @@ void stepper_init(volatile StepperProfile_t *nema, StepperPins_t *pins);
 void configure_stepper(volatile StepperProfile_t *nema, uint8_t direction,
                        int master, int slave);
 void step_motor(volatile StepperProfile_t *nema);
+
+int angle_to_steps(StepperProfile_t *nema, float target_angle);
 
 #endif /* MOTOR_CONTROL_H */

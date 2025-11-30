@@ -7,6 +7,7 @@
 #define INIT_CONST 0.676
 #define TIMER_FREQ 1000000
 #define ALPHA 0.00196
+#define STEP_PER_REV 3200
 
 void master_init(MotorProfile_t *motor, float max_speed, uint16_t accel_rate,
                  uint16_t min_delay) {
@@ -123,7 +124,7 @@ void configure_stepper(volatile StepperProfile_t *nema, uint8_t direction,
   nema->motor_ratio_master = master;
   nema->motor_ratio_slave = slave;
   nema->motor_accumulator = 0;
-  nema->motor_step_count = 0;
+  nema->motor_direction = direction;
 
   if (direction) {
     nema->GPIO_DIR->BSRR = nema->pin_dir_set;
@@ -140,7 +141,19 @@ void step_motor(volatile StepperProfile_t *nema) {
     delay_us(1);
     nema->GPIO_STEP->BSRR = nema->pin_step_reset;
 
-    nema->motor_step_count++;
     nema->motor_accumulator -= nema->motor_ratio_master;
+
+    if (nema->motor_direction) {
+      nema->motor_step_count++;
+    } else {
+      nema->motor_step_count--;
+    }
   }
+}
+
+int angle_to_steps(StepperProfile_t *nema, float target_angle) {
+  float curr_angle = (nema->motor_step_count / STEP_PER_REV) * 2 * M_PI;
+  int steps = (int)((target_angle - curr_angle) / ALPHA);
+
+  return steps;
 }
