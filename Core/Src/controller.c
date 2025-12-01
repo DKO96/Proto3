@@ -4,10 +4,11 @@
 
 #include "main.h"
 
-#define INIT_CONST 0.676
+#define M_PI 3.14159265358979323846
+#define INIT_CONST 0.676f
 #define TIMER_FREQ 1000000
-#define ALPHA 0.00196
-#define STEP_PER_REV 3200
+#define ALPHA 0.00196f
+#define STEP_PER_REV 3200.0f
 
 void master_init(MotorProfile_t *motor, float max_speed, uint16_t accel_rate,
                  uint16_t min_delay) {
@@ -18,7 +19,7 @@ void master_init(MotorProfile_t *motor, float max_speed, uint16_t accel_rate,
 
 static uint16_t calculate_initial_delay(MotorProfile_t *motor) {
   float initial_step =
-      INIT_CONST * TIMER_FREQ * sqrt(2 * ALPHA / motor->accel_rate);
+      INIT_CONST * TIMER_FREQ * sqrtf(2 * ALPHA / motor->accel_rate);
   return (uint16_t)initial_step;
 }
 
@@ -39,6 +40,11 @@ static void calculate_motion_profile(MotorProfile_t *motor) {
 
 void start_motion(MotorProfile_t *motor, TIM_TypeDef *TIMx,
                   uint32_t total_steps) {
+  if (total_steps == 0) {
+    motor->state = MOTOR_STATE_STOP;
+    return;
+  }
+
   // Configure move
   motor->total_steps = total_steps;
   motor->step_count = 0;
@@ -152,8 +158,13 @@ void step_motor(volatile StepperProfile_t *nema) {
 }
 
 int angle_to_steps(StepperProfile_t *nema, float target_angle) {
-  float curr_angle = (nema->motor_step_count / STEP_PER_REV) * 2 * M_PI;
+  float curr_angle = (nema->motor_step_count / STEP_PER_REV) * 2.0f * M_PI;
   int steps = (int)((target_angle - curr_angle) / ALPHA);
+
+  printI((int)(curr_angle * 180.0f / M_PI));
+  printS(" ");
+  printI(steps);
+  printS("\t");
 
   return steps;
 }

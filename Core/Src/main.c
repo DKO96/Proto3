@@ -12,8 +12,8 @@
 #define MAX_SPEED 26
 #define ACCELERATION 75
 #define MIN_DELAY 75
-#define LINK_1 52
-#define LINK_2 100
+#define LINK_1 52.0f
+#define LINK_2 100.0f
 
 typedef struct {
   float x;
@@ -31,10 +31,15 @@ QueueHandle_t xWaypointQueue;
 QueueHandle_t xIKQueue;
 SemaphoreHandle_t xMotorSemaphore;
 
+volatile uint32_t isr_count = 0;
 void TIM1_UP_TIM10_IRQHandler(void) {
   if (TIM1->SR & TIM_SR_UIF) {
     TIM1->SR &= ~TIM_SR_UIF;
   }
+
+  // printI(isr_count);
+  // printS("\r\n");
+  isr_count++;
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
@@ -49,12 +54,14 @@ void TIM1_UP_TIM10_IRQHandler(void) {
     TIM1->CR1 &= ~TIM_CR1_CEN;
     xSemaphoreGiveFromISR(xMotorSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    printS("stop motors\r\n");
   }
 }
 
 void vWaypointTask(void *pvParameters) {
   WaypointData_t waypoints[] = {
       {100.0f, 50.0f, 52.0f},
+      // {-100.0f, 30.0f, 60.0f},
   };
 
   for (;;) {
@@ -96,10 +103,11 @@ void vIKTask(void *pvParameters) {
 void vMotorTask(void *pvParameters) {
   AngleData_t xReceivedAngle;
   int steps[NUM_MOTORS];
-  int max_steps = 0;
 
   for (;;) {
     xQueueReceive(xIKQueue, &xReceivedAngle, portMAX_DELAY);
+    xSemaphoreTake(xMotorSemaphore, portMAX_DELAY);
+    int max_steps = 0;
 
     for (uint8_t i = 0; i < NUM_MOTORS; i++) {
       steps[i] =
@@ -110,12 +118,20 @@ void vMotorTask(void *pvParameters) {
       }
     }
 
-    xSemaphoreTake(xMotorSemaphore, portMAX_DELAY);
+    if (max_steps == 0) {
+      xSemaphoreGive(xMotorSemaphore);
+      continue;
+    }
 
     for (uint8_t i = 0; i < NUM_MOTORS; i++) {
       uint8_t direction = (steps[i] >= 0) ? 1 : 0;
       int slave_ratio = abs(steps[i]);
       int master_ratio = max_steps;
+
+      // printI(slave_ratio);
+      // printS("\t");
+      // printI(master_ratio);
+      // printS("\r\n");
 
       configure_stepper((StepperProfile_t *)&motors[i], direction, master_ratio,
                         slave_ratio);
@@ -156,9 +172,6 @@ int main() {
   xTaskCreate(vMotorTask, "Motor", 1000, NULL, 3, NULL);
 
   vTaskStartScheduler();
-
-  while (1) {
-  }
 
   return 0;
 }
