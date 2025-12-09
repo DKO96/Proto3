@@ -1,176 +1,117 @@
 #include "main.h"
 
-#include <math.h>
-#include <stdlib.h>
-
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
 #include "task.h"
 
-#define NUM_MOTORS 3
-#define MAX_SPEED 26
-#define ACCELERATION 75
-#define MIN_DELAY 75
-#define LINK_1 52.0f
-#define LINK_2 100.0f
+RobotHandle_t robot;
+QueueHandle_t waypoint_queue;
+QueueHandle_t ik_queue;
+SemaphoreHandle_t motion_complete_semphr;
 
-typedef struct {
-  float x;
-  float y;
-  float z;
-} WaypointData_t;
-
-typedef struct {
-  float t[3];
-} AngleData_t;
-
-volatile MotorProfile_t motor = {0};
-volatile StepperProfile_t motors[NUM_MOTORS] = {0};
-QueueHandle_t xWaypointQueue;
-QueueHandle_t xIKQueue;
-SemaphoreHandle_t xMotorSemaphore;
-
-volatile uint32_t isr_count = 0;
 void TIM1_UP_TIM10_IRQHandler(void) {
-  if (TIM1->SR & TIM_SR_UIF) {
-    TIM1->SR &= ~TIM_SR_UIF;
-  }
-
-  // printI(isr_count);
-  // printS("\r\n");
-  isr_count++;
+  TIM1->SR &= ~TIM_SR_UIF;
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-  motor_process_step((MotorProfile_t *)&motor);
-  TIM1->ARR = motor.step_delay;
+  motion_process_step(&robot.motion);
+  TIM1->ARR = robot.motion.step_delay;
 
-  for (uint8_t i = 0; i < NUM_MOTORS; i++) {
-    step_motor((StepperProfile_t *)&motors[i]);
+  for (uint8_t i = 0; i < ROBOT_NUM_JOINTS; i++) {
+    stepper_sync_step(&robot.joints[i]);
   }
 
-  if (motor.state == MOTOR_STATE_STOP) {
+  if (robot.motion.state == MOTION_STATE_IDLE) {
     TIM1->CR1 &= ~TIM_CR1_CEN;
-    xSemaphoreGiveFromISR(xMotorSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(motion_complete_semphr, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    printS("stop motors\r\n");
   }
 }
 
-void vWaypointTask(void *pvParameters) {
-  WaypointData_t waypoints[] = {
-      {100.0f, 50.0f, 52.0f},
-      // {-100.0f, 30.0f, 60.0f},
+static void waypoint_task(void *pvParameters) {
+  CartesianPoint_t waypoints[] = {
+      {.x = 100.0f, .y = 0.0f, .z = 52.0f},
+      {.x = -100.0f, .y = 0.0f, .z = 52.0f},
+      // {.x = 80.0f, .y = 0.0f, .z = 75.0f},
+      // {.x = -100.0f, .y = 0.0f, .z = 25.0f},
   };
 
+  const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
+
   for (;;) {
-    for (uint8_t i = 0; i < sizeof(waypoints) / sizeof(waypoints[0]); i++) {
-      xQueueSend(xWaypointQueue, &waypoints[i], portMAX_DELAY);
+    for (uint8_t i = 0; i < num_waypoints; i++) {
+      xQueueSend(waypoint_queue, &waypoints[i], portMAX_DELAY);
+      vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
 }
 
-void vIKTask(void *pvParameters) {
-  WaypointData_t xReceivedWaypoint;
-  float x, y, z;
-  AngleData_t angles;
+static void ik_task(void *pvParameters) {
+  CartesianPoint_t target;
+  JointAngles_t angles;
 
   for (;;) {
-    xQueueReceive(xWaypointQueue, &xReceivedWaypoint, portMAX_DELAY);
+    xQueueReceive(waypoint_queue, &target, portMAX_DELAY);
 
-    x = xReceivedWaypoint.x;
-    y = xReceivedWaypoint.y;
-    z = xReceivedWaypoint.z;
+    angles = robot_inverse_kinematics(&robot, &target);
 
-    float r = sqrtf(x * x + y * y);
-    float cos_t2 = (r * r + z * z - LINK_1 * LINK_1 - LINK_2 * LINK_2) /
-                   (2 * LINK_1 * LINK_2);
-
-    if (fabsf(cos_t2) > 1) continue;
-
-    angles.t[2] = -acosf(cos_t2);
-
-    angles.t[1] = atan2f(z, r) - atan2f(LINK_2 * sinf(angles.t[2]),
-                                        LINK_1 + LINK_2 * cosf(angles.t[2]));
-
-    angles.t[0] = atan2f(y, x);
-
-    xQueueSend(xIKQueue, &angles, portMAX_DELAY);
-  }
-}
-
-void vMotorTask(void *pvParameters) {
-  AngleData_t xReceivedAngle;
-  int steps[NUM_MOTORS];
-
-  for (;;) {
-    xQueueReceive(xIKQueue, &xReceivedAngle, portMAX_DELAY);
-    xSemaphoreTake(xMotorSemaphore, portMAX_DELAY);
-    int max_steps = 0;
-
-    for (uint8_t i = 0; i < NUM_MOTORS; i++) {
-      steps[i] =
-          angle_to_steps((StepperProfile_t *)&motors[i], xReceivedAngle.t[i]);
-
-      if (abs(steps[i]) > max_steps) {
-        max_steps = abs(steps[i]);
-      }
-    }
-
-    if (max_steps == 0) {
-      xSemaphoreGive(xMotorSemaphore);
+    if (!angles.valid) {
+      // TODO: handle unreachable target
       continue;
     }
 
-    for (uint8_t i = 0; i < NUM_MOTORS; i++) {
-      uint8_t direction = (steps[i] >= 0) ? 1 : 0;
-      int slave_ratio = abs(steps[i]);
-      int master_ratio = max_steps;
+    xQueueSend(ik_queue, &angles, portMAX_DELAY);
+  }
+}
 
-      // printI(slave_ratio);
-      // printS("\t");
-      // printI(master_ratio);
-      // printS("\r\n");
+static void motor_task(void *pvParameters) {
+  JointAngles_t target_angles;
+  MotionPlan_t plan;
 
-      configure_stepper((StepperProfile_t *)&motors[i], direction, master_ratio,
-                        slave_ratio);
+  for (;;) {
+    xQueueReceive(ik_queue, &target_angles, portMAX_DELAY);
+    xSemaphoreTake(motion_complete_semphr, portMAX_DELAY);
+
+    plan = robot_plan_motion(&robot, &target_angles);
+
+    if (!plan.valid) {
+      /* No motion required (already at target) */
+      xSemaphoreGive(motion_complete_semphr);
+      continue;
     }
 
-    // Start move
-    master_init((MotorProfile_t *)&motor, MAX_SPEED, ACCELERATION, MIN_DELAY);
-    start_motion((MotorProfile_t *)&motor, TIM1, max_steps);
+    robot_execute_plan(&robot, &plan, TIM1);
   }
 }
 
 int main() {
-  // Initialize stm32
+  /* Initialize hardware */
   system_init();
   gpio_init();
   uart_init(USART2);
   timer_master_init();
 
-  // Initialize stepper motor
-  StepperPins_t motor_pins[] = {
-      {.step = {GPIOA, 0}, .dir = {GPIOB, 2}},
-      {.step = {GPIOA, 1}, .dir = {GPIOB, 1}},
-      {.step = {GPIOA, 4}, .dir = {GPIOB, 15}},
+  /* Initialize robot hardware */
+  const StepperPinConfig_t stepper_pins[ROBOT_NUM_JOINTS] = {
+      {.step = {GPIOA, 0}, .dir = {GPIOB, 2}},   // joint 0
+      {.step = {GPIOA, 1}, .dir = {GPIOB, 1}},   // joint 1
+      {.step = {GPIOA, 4}, .dir = {GPIOB, 15}},  // joint 2
   };
+  robot_init(&robot, stepper_pins, LINK_1, LINK_2);
 
-  for (uint8_t i = 0; i < NUM_MOTORS; i++) {
-    stepper_init((StepperProfile_t *)&motors[i], &motor_pins[i]);
-  }
+  /* Initialize rtos */
+  waypoint_queue = xQueueCreate(3, sizeof(CartesianPoint_t));
+  ik_queue = xQueueCreate(2, sizeof(JointAngles_t));
 
-  xWaypointQueue = xQueueCreate(3, sizeof(WaypointData_t));
-  xIKQueue = xQueueCreate(2, sizeof(AngleData_t));
+  motion_complete_semphr = xSemaphoreCreateBinary();
+  xSemaphoreGive(motion_complete_semphr);
 
-  xMotorSemaphore = xSemaphoreCreateBinary();
-  xSemaphoreGive(xMotorSemaphore);
+  xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, 1, NULL);
+  xTaskCreate(ik_task, "IK", 1000, NULL, 2, NULL);
+  xTaskCreate(motor_task, "Motor", 1000, NULL, 3, NULL);
 
-  xTaskCreate(vWaypointTask, "Waypoint", 1000, NULL, 1, NULL);
-  xTaskCreate(vIKTask, "IK", 1000, NULL, 2, NULL);
-  xTaskCreate(vMotorTask, "Motor", 1000, NULL, 3, NULL);
-
+  /* Start scheduler */
   vTaskStartScheduler();
 
   return 0;

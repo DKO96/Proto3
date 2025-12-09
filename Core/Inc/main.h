@@ -1,16 +1,16 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-// STM32
-#include <stdint.h>
-
 // Peripherals
 #include "gpio.h"
 #include "timer.h"
 #include "uart.h"
 
-// Motor
-#include "controller.h"
+// Robot
+#include "config.h"
+#include "motion.h"
+#include "robot.h"
+#include "stepper.h"
 
 void system_init(void);
 void delay_us(uint32_t us);
