@@ -5,6 +5,7 @@
 
 #include "motion.h"
 #include "stepper.h"
+#include "uart.h"
 
 void robot_init(RobotHandle_t *robot,
                 const StepperPinConfig_t pin_configs[ROBOT_NUM_JOINTS],
@@ -91,4 +92,47 @@ void robot_execute_plan(RobotHandle_t *robot, const MotionPlan_t *plan,
   }
 
   motion_start(&robot->motion, TIMx, plan->reference_steps);
+}
+
+void robot_monitor(RobotHandle_t *robot) {
+  printS("\r\n=== Robot State ===\r\n");
+  printS("Motion:        ");
+
+  switch (robot->motion.state) {
+    case MOTION_STATE_IDLE:
+      printS("IDLE");
+      break;
+
+    case MOTION_STATE_ACCEL:
+      printS("ACCEL");
+      break;
+
+    case MOTION_STATE_CONST:
+      printS("CONST");
+      break;
+
+    case MOTION_STATE_DECEL:
+      printS("DECEL");
+      break;
+
+    default:
+      break;
+  }
+  printS("\r\n");
+
+  printS("Joints:        ");
+  printI(robot->joints[0].position_steps);
+  printS("    ");
+  printI(robot->joints[1].position_steps);
+  printS("    ");
+  printI(robot->joints[2].position_steps);
+  printS("\r\n");
+
+  printS("Angles:        ");
+  printI(robot->joints[0].position_steps);
+  printS("    ");
+  printI(robot->joints[1].position_steps);
+  printS("    ");
+  printI(robot->joints[2].position_steps);
+  printS("\r\n");
 }

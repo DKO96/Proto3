@@ -31,8 +31,10 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      {.x = 100.0f, .y = 0.0f, .z = 52.0f},
-      {.x = -100.0f, .y = 0.0f, .z = 52.0f},
+      // {.x = 100.0f, .y = 0.0f, .z = 52.0f},
+      // {.x = -100.0f, .y = 0.0f, .z = 52.0f},
+      {.x = 0.0f, .y = 100.0f, .z = 52.0f},
+      {.x = 0.0f, .y = -100.0f, .z = 52.0f},
       // {.x = 80.0f, .y = 0.0f, .z = 75.0f},
       // {.x = -100.0f, .y = 0.0f, .z = 25.0f},
   };
@@ -85,6 +87,15 @@ static void motor_task(void *pvParameters) {
   }
 }
 
+static void monitor_task(void *pvParameters) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
+  for (;;) {
+    robot_monitor(&robot);
+    xTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
+  }
+}
+
 int main() {
   /* Initialize hardware */
   system_init();
@@ -101,15 +112,16 @@ int main() {
   robot_init(&robot, stepper_pins, LINK_1, LINK_2);
 
   /* Initialize rtos */
-  waypoint_queue = xQueueCreate(3, sizeof(CartesianPoint_t));
-  ik_queue = xQueueCreate(2, sizeof(JointAngles_t));
+  waypoint_queue = xQueueCreate(WAYPOINT_QUEUE, sizeof(CartesianPoint_t));
+  ik_queue = xQueueCreate(INV_KIN_QUEUE, sizeof(JointAngles_t));
 
   motion_complete_semphr = xSemaphoreCreateBinary();
   xSemaphoreGive(motion_complete_semphr);
 
-  xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, 1, NULL);
-  xTaskCreate(ik_task, "IK", 1000, NULL, 2, NULL);
-  xTaskCreate(motor_task, "Motor", 1000, NULL, 3, NULL);
+  xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
+  xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
+  xTaskCreate(motor_task, "Motor", 1000, NULL, MOTOR_PRIORITY, NULL);
+  xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
 
   /* Start scheduler */
   vTaskStartScheduler();

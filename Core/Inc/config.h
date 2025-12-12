@@ -22,4 +22,13 @@
 /* Timer */
 #define TIMER_FREQ 1000000
 
+/* RTOS */
+#define MONITOR_PRIORITY 1
+#define WAYPOINT_PRIORITY 1
+#define INV_KIN_PRIORITY 2
+#define MOTOR_PRIORITY 3
+
+#define WAYPOINT_QUEUE 2
+#define INV_KIN_QUEUE 1
+
 #endif /* CONFIG_H */

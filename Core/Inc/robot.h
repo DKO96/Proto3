@@ -16,4 +16,6 @@ MotionPlan_t robot_plan_motion(const RobotHandle_t *robot,
 void robot_execute_plan(RobotHandle_t *robot, const MotionPlan_t *plan,
                         TIM_TypeDef *TIMx);
 
+void robot_monitor(RobotHandle_t *robot);
+
 #endif /* ROBOT_H */
