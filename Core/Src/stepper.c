@@ -21,7 +21,7 @@ void stepper_init(volatile StepperJoint_t *joint,
   joint->sync_accumulator = 0;
 
   /* Initialize position */
-  joint->position_steps = 0;
+  joint->position_steps = (int32_t)(pins->init_rad / ALPHA);
   joint->direction = STEP_DIR_POSITIVE;
 }
 

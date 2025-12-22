@@ -6,9 +6,8 @@
 #include "main.h"
 
 static uint16_t calculate_initial_delay(volatile MotionProfile_t *profile) {
-  float initial_step =
-      INITIAL_DELAY_CONST * TIMER_FREQ * sqrtf(2 * ALPHA / profile->accel_rate);
-
+  float initial_step = INITIAL_DELAY_CONST * TIMER_FREQ *
+                       sqrtf(2.0f * ALPHA / profile->accel_rate);
   return (uint16_t)initial_step;
 }
 
@@ -56,6 +55,16 @@ void motion_configure(volatile MotionProfile_t *profile, float max_speed,
   profile->accel_rate = accel_rate;
   profile->min_delay = min_delay;
   profile->state = MOTION_STATE_IDLE;
+
+  printS("max speed: ");
+  printI((uint16_t)max_speed);
+  printS("\r\n");
+  printS("acceleration: ");
+  printI(accel_rate);
+  printS("\r\n");
+  printS("min_delay: ");
+  printI(min_delay);
+  printS("\r\n");
 }
 
 void motion_start(volatile MotionProfile_t *profile, TIM_TypeDef *TIMx,

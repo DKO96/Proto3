@@ -5,7 +5,7 @@
 #include "semphr.h"
 #include "task.h"
 
-RobotHandle_t robot;
+RobotHandle_t robot = {0};
 QueueHandle_t waypoint_queue;
 QueueHandle_t ik_queue;
 SemaphoreHandle_t motion_complete_semphr;
@@ -31,12 +31,9 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      // {.x = 100.0f, .y = 0.0f, .z = 52.0f},
-      // {.x = -100.0f, .y = 0.0f, .z = 52.0f},
-      {.x = 0.0f, .y = 100.0f, .z = 52.0f},
-      {.x = 0.0f, .y = -100.0f, .z = 52.0f},
-      // {.x = 80.0f, .y = 0.0f, .z = 75.0f},
-      // {.x = -100.0f, .y = 0.0f, .z = 25.0f},
+      {.x = 185.0f, .y = 0.0f, .z = 0.0f},
+      {.x = 100.0f, .y = 0.0f, .z = 85.0f},
+      {.x = 0.0f, .y = 185.0f, .z = 0.0f},
   };
 
   const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
@@ -105,9 +102,9 @@ int main() {
 
   /* Initialize robot hardware */
   const StepperPinConfig_t stepper_pins[ROBOT_NUM_JOINTS] = {
-      {.step = {GPIOA, 0}, .dir = {GPIOB, 2}},   // joint 0
-      {.step = {GPIOA, 1}, .dir = {GPIOB, 1}},   // joint 1
-      {.step = {GPIOA, 4}, .dir = {GPIOB, 15}},  // joint 2
+      {.step = {GPIOA, 0}, .dir = {GPIOB, 2}, .init_rad = 0.0f},     // joint 0
+      {.step = {GPIOA, 1}, .dir = {GPIOB, 1}, .init_rad = -1.899f},  // joint 1
+      {.step = {GPIOA, 4}, .dir = {GPIOB, 15}, .init_rad = 2.585f},  // joint 2
   };
   robot_init(&robot, stepper_pins, LINK_1, LINK_2);
 
@@ -121,7 +118,7 @@ int main() {
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
   xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
   xTaskCreate(motor_task, "Motor", 1000, NULL, MOTOR_PRIORITY, NULL);
-  xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
+  // xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
 
   /* Start scheduler */
   vTaskStartScheduler();

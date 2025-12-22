@@ -39,6 +39,7 @@ BIN_FILE = $(BUILD_DIR)/firmware.bin
 # Compiler flags
 CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g -O0 \
          -DSTM32F446xx \
+         -MMD -MP \
          -I$(INC_DIR) \
          -I$(CMSIS_DIR) \
          -I$(STARTUP_DIR) \
@@ -94,6 +95,9 @@ flash: $(ELF_FILE)
 # Clean build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
+
+# Include generated dependency files
+-include $(C_OBJECTS:.o=.d)
 
 # Phony targets
 .PHONY: all flash clean

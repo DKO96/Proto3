@@ -40,9 +40,9 @@ JointAngles_t robot_inverse_kinematics(const RobotHandle_t *robot,
 
   if (fabsf(cos_theta2) > 1) return result;
 
-  result.theta[2] = -acosf(cos_theta2);
+  result.theta[2] = acosf(cos_theta2);
 
-  result.theta[1] = atan2f(z, r) - atan2f(L2 * sinf(result.theta[2]),
+  result.theta[1] = atan2f(r, z) - atan2f(L2 * sinf(result.theta[2]),
                                           L1 + L2 * cosf(result.theta[2]));
 
   result.theta[0] = atan2f(y, x);
@@ -121,14 +121,6 @@ void robot_monitor(RobotHandle_t *robot) {
   printS("\r\n");
 
   printS("Joints:        ");
-  printI(robot->joints[0].position_steps);
-  printS("    ");
-  printI(robot->joints[1].position_steps);
-  printS("    ");
-  printI(robot->joints[2].position_steps);
-  printS("\r\n");
-
-  printS("Angles:        ");
   printI(robot->joints[0].position_steps);
   printS("    ");
   printI(robot->joints[1].position_steps);

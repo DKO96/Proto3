@@ -17,25 +17,6 @@ void gpio_usart2(void) {
       ((7U << GPIO_AFRL_AFSEL2_Pos) | (7U << GPIO_AFRL_AFSEL3_Pos));
 }
 
-void gpio_i2c1(void) {
-  // Configure PB8 (SCL), PB9 (SDA) for I2C1
-  GPIOB->MODER &= ~(GPIO_MODER_MODE8 | GPIO_MODER_MODE9);
-  GPIOB->MODER |= ((2U << GPIO_MODER_MODE8_Pos) | (2U << GPIO_MODER_MODE9_Pos));
-
-  GPIOB->AFR[1] &= ~(GPIO_AFRH_AFSEL8 | GPIO_AFRH_AFSEL9);
-  GPIOB->AFR[1] |=
-      ((4U << GPIO_AFRH_AFSEL8_Pos) | (4U << GPIO_AFRH_AFSEL9_Pos));
-
-  GPIOB->OTYPER |= (GPIO_OTYPER_OT8 | GPIO_OTYPER_OT9);
-
-  GPIOB->OSPEEDR &= ~((GPIO_OSPEEDR_OSPEED8) | (GPIO_OSPEEDR_OSPEED9));
-  GPIOB->OSPEEDR |=
-      ((3U << GPIO_OSPEEDR_OSPEED8_Pos) | (3U << GPIO_OSPEEDR_OSPEED9_Pos));
-
-  GPIOB->PUPDR &= ~((GPIO_PUPDR_PUPD8) | (GPIO_PUPDR_PUPD9));
-  GPIOB->PUPDR |= ((1U << GPIO_PUPDR_PUPD8_Pos) | (1U << GPIO_PUPDR_PUPD9_Pos));
-}
-
 void gpio_stepper1(void) {
   // Configure PA0 for TMC2209(1) step pin
   GPIOA->MODER &= ~GPIO_MODER_MODE0;
@@ -94,7 +75,6 @@ void gpio_init(void) {
 
   gpio_led();
   gpio_usart2();
-  gpio_i2c1();
   gpio_stepper1();
   gpio_stepper2();
   gpio_stepper3();

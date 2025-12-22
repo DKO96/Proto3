@@ -17,6 +17,7 @@ typedef struct {
 typedef struct {
   GpioPin_t step;
   GpioPin_t dir;
+  float init_rad;
 } StepperPinConfig_t;
 
 // GPIO helper macros

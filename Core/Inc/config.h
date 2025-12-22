@@ -4,7 +4,7 @@
 #define M_PI 3.14159265358979323846
 
 /* Robot geometry [mm] */
-#define LINK_1 52.0f
+#define LINK_1 85.0f
 #define LINK_2 100.0f
 #define ROBOT_NUM_LINKS 2
 #define ROBOT_NUM_JOINTS 3
@@ -15,9 +15,9 @@
 #define INITIAL_DELAY_CONST 0.676f
 
 /* Motion profile */
-#define MAX_SPEED 26     // [radians per second]
-#define ACCELERATION 75  // [radians per second^2]
-#define MIN_DELAY 75     // [microseconds]
+#define MAX_SPEED 8.0f   // [radians per second]
+#define ACCELERATION 12  // [radians per second^2]
+#define MIN_DELAY 90     // [microseconds]
 
 /* Timer */
 #define TIMER_FREQ 1000000
