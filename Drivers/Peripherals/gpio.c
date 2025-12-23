@@ -6,6 +6,15 @@ void gpio_led(void) {
   GPIOA->MODER |= GPIO_MODER_MODE5_0;
 }
 
+void gpio_button(void) {
+  // Configure GPIOC mode port for PC13
+  GPIOC->MODER &= ~GPIO_MODER_MODE13;
+
+  // Enable pull-up resistors
+  GPIOC->PUPDR &= ~GPIO_PUPDR_PUPD13;
+  GPIOC->PUPDR |= GPIO_PUPDR_PUPD13_0;
+}
+
 void gpio_usart2(void) {
   // Configure PA2, PA3 for USART2
   GPIOA->MODER &= ~(GPIO_MODER_MODE2 | GPIO_MODER_MODE3);
@@ -72,8 +81,10 @@ void gpio_init(void) {
   // Enable clock access to GPIO A,B
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
 
   gpio_led();
+  gpio_button();
   gpio_usart2();
   gpio_stepper1();
   gpio_stepper2();

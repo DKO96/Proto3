@@ -10,6 +10,15 @@ QueueHandle_t waypoint_queue;
 QueueHandle_t ik_queue;
 SemaphoreHandle_t motion_complete_semphr;
 
+void EXTI15_10_IRQHandler(void) {
+  if (EXTI->PR & EXTI_PR_PR13) {
+    EXTI->PR |= EXTI_PR_PR13;
+  }
+
+  GPIOA->ODR ^= GPIO_ODR_OD5;
+  delay_ms(1);
+}
+
 void TIM1_UP_TIM10_IRQHandler(void) {
   TIM1->SR &= ~TIM_SR_UIF;
 
@@ -97,6 +106,7 @@ int main() {
   /* Initialize hardware */
   system_init();
   gpio_init();
+  exti_init();
   uart_init(USART2);
   timer_master_init();
 

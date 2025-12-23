@@ -2,6 +2,7 @@
 #define MAIN_H_
 
 // Peripherals
+#include "exti.h"
 #include "gpio.h"
 #include "timer.h"
 #include "uart.h"
