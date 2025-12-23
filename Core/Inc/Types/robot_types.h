@@ -6,6 +6,11 @@
 #include "Types/stepper_types.h"
 #include "config.h"
 
+typedef enum {
+  SAFETY_STATE_OFF,
+  SAFETY_STATE_ON,
+} SafetyState_t;
+
 typedef struct {
   float x;
   float y;

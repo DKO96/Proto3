@@ -55,16 +55,6 @@ void motion_configure(volatile MotionProfile_t *profile, float max_speed,
   profile->accel_rate = accel_rate;
   profile->min_delay = min_delay;
   profile->state = MOTION_STATE_IDLE;
-
-  printS("max speed: ");
-  printI((uint16_t)max_speed);
-  printS("\r\n");
-  printS("acceleration: ");
-  printI(accel_rate);
-  printS("\r\n");
-  printS("min_delay: ");
-  printI(min_delay);
-  printS("\r\n");
 }
 
 void motion_start(volatile MotionProfile_t *profile, TIM_TypeDef *TIMx,

@@ -96,8 +96,23 @@ void robot_execute_plan(RobotHandle_t *robot, const MotionPlan_t *plan,
 
 void robot_monitor(RobotHandle_t *robot) {
   printS("\r\n=== Robot State ===\r\n");
-  printS("Motion:        ");
 
+  printS("Motion:        ");
+  switch (robot->motion.profile_type) {
+    case MOTION_PROFILE_TRAPEZOIDAL:
+      printS("Trapezoidal");
+      break;
+
+    case MOTION_PROFILE_TRIANGULAR:
+      printS("Triangular");
+      break;
+
+    default:
+      break;
+  }
+  printS("\r\n");
+
+  printS("State:         ");
   switch (robot->motion.state) {
     case MOTION_STATE_IDLE:
       printS("IDLE");

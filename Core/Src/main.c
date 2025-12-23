@@ -40,9 +40,9 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      {.x = 185.0f, .y = 0.0f, .z = 0.0f},
-      {.x = 100.0f, .y = 0.0f, .z = 85.0f},
-      {.x = 0.0f, .y = 185.0f, .z = 0.0f},
+      {.x = 185.0f, .y = 0.0f, .z = 0.0f}, {.x = -185.0f, .y = 0.0f, .z = 0.0f},
+      // {.x = 100.0f, .y = 0.0f, .z = 85.0f},
+      // {.x = 0.0f, .y = 185.0f, .z = 0.0f},
   };
 
   const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
@@ -128,7 +128,7 @@ int main() {
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
   xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
   xTaskCreate(motor_task, "Motor", 1000, NULL, MOTOR_PRIORITY, NULL);
-  // xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
+  xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
 
   /* Start scheduler */
   vTaskStartScheduler();
