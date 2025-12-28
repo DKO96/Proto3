@@ -15,12 +15,17 @@ void EXTI15_10_IRQHandler(void) {
     EXTI->PR |= EXTI_PR_PR13;
   }
 
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
   if (robot.safety == SAFETY_STATE_ON) {
     robot.safety = SAFETY_STATE_OFF;
     LED_OFF();
+    xSemaphoreGiveFromISR(motion_complete_semphr, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   } else {
     robot.safety = SAFETY_STATE_ON;
     LED_ON();
+    TIM1->CR1 &= ~TIM_CR1_CEN;
   }
 }
 
@@ -45,9 +50,10 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      {.x = 185.0f, .y = 0.0f, .z = 0.0f}, {.x = -185.0f, .y = 0.0f, .z = 0.0f},
-      // {.x = 100.0f, .y = 0.0f, .z = 85.0f},
-      // {.x = 0.0f, .y = 185.0f, .z = 0.0f},
+      {.x = 185.0f, .y = 0.0f, .z = 0.0f},
+      // {.x = -185.0f, .y = 0.0f, .z = 0.0f},
+      {.x = 100.0f, .y = 0.0f, .z = 85.0f},
+      {.x = 0.0f, .y = 185.0f, .z = 0.0f},
   };
 
   const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
@@ -85,6 +91,11 @@ static void motor_task(void *pvParameters) {
   for (;;) {
     xQueueReceive(ik_queue, &target_angles, portMAX_DELAY);
     xSemaphoreTake(motion_complete_semphr, portMAX_DELAY);
+
+    if (robot.safety == SAFETY_STATE_ON) {
+      xSemaphoreGive(motion_complete_semphr);
+      continue;
+    }
 
     plan = robot_plan_motion(&robot, &target_angles);
 
@@ -128,7 +139,7 @@ int main() {
   ik_queue = xQueueCreate(INV_KIN_QUEUE, sizeof(JointAngles_t));
 
   motion_complete_semphr = xSemaphoreCreateBinary();
-  xSemaphoreGive(motion_complete_semphr);
+  // xSemaphoreGive(motion_complete_semphr);
 
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
   xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);

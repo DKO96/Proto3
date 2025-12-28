@@ -34,7 +34,7 @@
 #define MOTOR_PRIORITY 3
 #define SAFETY_PRIORITY 4
 
-#define WAYPOINT_QUEUE 2
+#define WAYPOINT_QUEUE 1
 #define INV_KIN_QUEUE 1
 
 #endif /* CONFIG_H */
