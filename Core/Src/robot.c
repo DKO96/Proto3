@@ -21,6 +21,10 @@ void robot_init(RobotHandle_t *robot,
 
   /* Initialize motion profile */
   motion_configure(&robot->motion, MAX_SPEED, ACCELERATION, MIN_DELAY);
+
+  /* Initialize safety */
+  robot->safety = SAFETY_STATE_ON;
+  LED_ON();
 }
 
 JointAngles_t robot_inverse_kinematics(const RobotHandle_t *robot,
@@ -96,6 +100,20 @@ void robot_execute_plan(RobotHandle_t *robot, const MotionPlan_t *plan,
 
 void robot_monitor(RobotHandle_t *robot) {
   printS("\r\n=== Robot State ===\r\n");
+  printS("Safety:        ");
+  switch (robot->safety) {
+    case SAFETY_STATE_OFF:
+      printS("OFF");
+      break;
+
+    case SAFETY_STATE_ON:
+      printS("ON");
+      break;
+
+    default:
+      break;
+  }
+  printS("\r\n");
 
   printS("Motion:        ");
   switch (robot->motion.profile_type) {

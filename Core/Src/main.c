@@ -15,8 +15,13 @@ void EXTI15_10_IRQHandler(void) {
     EXTI->PR |= EXTI_PR_PR13;
   }
 
-  GPIOA->ODR ^= GPIO_ODR_OD5;
-  delay_ms(1);
+  if (robot.safety == SAFETY_STATE_ON) {
+    robot.safety = SAFETY_STATE_OFF;
+    LED_OFF();
+  } else {
+    robot.safety = SAFETY_STATE_ON;
+    LED_ON();
+  }
 }
 
 void TIM1_UP_TIM10_IRQHandler(void) {

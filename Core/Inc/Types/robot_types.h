@@ -32,6 +32,10 @@ typedef struct {
   volatile StepperJoint_t joints[ROBOT_NUM_JOINTS];
   volatile MotionProfile_t motion;
   float link_lengths[ROBOT_NUM_LINKS];
+  volatile SafetyState_t safety;
 } RobotHandle_t;
+
+#define LED_ON() (GPIOA->ODR |= GPIO_ODR_OD5)
+#define LED_OFF() (GPIOA->ODR &= ~GPIO_ODR_OD5)
 
 #endif /* ROBOT_TYPES_H */
