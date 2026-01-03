@@ -19,11 +19,6 @@
 #define ACCELERATION 12  // [radians per second^2]
 #define MIN_DELAY 90     // [microseconds]
 
-// Slow test
-// #define MAX_SPEED 3.0f  // [radians per second]
-// #define ACCELERATION 6  // [radians per second^2]
-// #define MIN_DELAY 90    // [microseconds]
-
 /* Timer */
 #define TIMER_FREQ 1000000
 

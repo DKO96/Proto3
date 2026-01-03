@@ -3,9 +3,9 @@
 
 #include "stm32f446xx.h"
 
-// Function declarations
+/**
+ * @brief Initialize hardware timer 1 for stepper motor control
+ */
 void timer_master_init(void);
-void timer_pwm_init(TIM_TypeDef *TIMx);
-void timer_isr_init(void);
 
 #endif /* TIMER_H */

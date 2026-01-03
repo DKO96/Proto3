@@ -78,7 +78,7 @@ void gpio_stepper3(void) {
 }
 
 void gpio_init(void) {
-  // Enable clock access to GPIO A,B
+  // Enable clock access to GPIO A, B, C
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
   RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;

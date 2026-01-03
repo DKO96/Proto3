@@ -8,7 +8,7 @@ void exti_init(void) {
 
   EXTI->IMR |= EXTI_IMR_MR13;
 
-  // Detect falling edge
+  // Detect on falling edge
   EXTI->FTSR |= EXTI_FTSR_TR13;
 
   EXTI->PR |= EXTI_PR_PR13;

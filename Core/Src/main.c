@@ -51,7 +51,6 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
       {.x = 185.0f, .y = 0.0f, .z = 0.0f},
-      // {.x = -185.0f, .y = 0.0f, .z = 0.0f},
       {.x = 100.0f, .y = 0.0f, .z = 85.0f},
       {.x = 0.0f, .y = 185.0f, .z = 0.0f},
   };
@@ -61,7 +60,6 @@ static void waypoint_task(void *pvParameters) {
   for (;;) {
     for (uint8_t i = 0; i < num_waypoints; i++) {
       xQueueSend(waypoint_queue, &waypoints[i], portMAX_DELAY);
-      vTaskDelay(pdMS_TO_TICKS(1000));
     }
   }
 }
@@ -139,7 +137,6 @@ int main() {
   ik_queue = xQueueCreate(INV_KIN_QUEUE, sizeof(JointAngles_t));
 
   motion_complete_semphr = xSemaphoreCreateBinary();
-  // xSemaphoreGive(motion_complete_semphr);
 
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
   xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
