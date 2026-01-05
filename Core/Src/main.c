@@ -38,7 +38,24 @@ void TIM1_UP_TIM10_IRQHandler(void) {
   TIM1->ARR = robot.motion.step_delay;
 
   for (uint8_t i = 0; i < ROBOT_NUM_JOINTS; i++) {
-    stepper_sync_step(&robot.joints[i]);
+    // stepper_sync_step(&robot.joints[i]);
+
+    // DEBUG: desync stepper motors
+    if (robot.joints[i].sync_numerator >= 0) {
+      /* Generate step pulse */
+      robot.joints[i].step_port->BSRR = robot.joints[i].step_set;
+      delay_us(1);
+      robot.joints[i].step_port->BSRR = robot.joints[i].step_reset;
+
+      robot.joints[i].sync_numerator--;
+
+      /* Update position */
+      if (robot.joints[i].direction) {
+        robot.joints[i].position_steps++;
+      } else {
+        robot.joints[i].position_steps--;
+      }
+    }
   }
 
   if (robot.motion.state == MOTION_STATE_IDLE) {
@@ -50,9 +67,11 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      {.x = 185.0f, .y = 0.0f, .z = 0.0f},
-      {.x = 100.0f, .y = 0.0f, .z = 85.0f},
-      {.x = 0.0f, .y = 185.0f, .z = 0.0f},
+      // {.x = 100.0f, .y = 0.0f, .z = 85.0f},
+      {.x = 90.0f, .y = -65.0f, .z = 0.0f},
+      {.x = 90.0f, .y = 65.0f, .z = 0.0f},
+      {.x = 90.0f, .y = 65.0f, .z = 130.0f},
+      {.x = 90.0f, .y = -65.0f, .z = 130.0f},
   };
 
   const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
