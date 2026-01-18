@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include <math.h>
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
@@ -67,11 +69,11 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
 static void waypoint_task(void *pvParameters) {
   CartesianPoint_t waypoints[] = {
-      // {.x = 100.0f, .y = 0.0f, .z = 85.0f},
-      {.x = 90.0f, .y = -65.0f, .z = 0.0f},
-      {.x = 90.0f, .y = 65.0f, .z = 0.0f},
-      {.x = 90.0f, .y = 65.0f, .z = 130.0f},
-      {.x = 90.0f, .y = -65.0f, .z = 130.0f},
+      {.x = 100.0f, .y = 0.0f, .z = 85.0f},
+      // {.x = 90.0f, .y = -65.0f, .z = 0.0f},
+      // {.x = 90.0f, .y = 65.0f, .z = 0.0f},
+      // {.x = 90.0f, .y = 65.0f, .z = 130.0f},
+      // {.x = 90.0f, .y = -65.0f, .z = 130.0f},
   };
 
   const size_t num_waypoints = sizeof(waypoints) / sizeof(waypoints[0]);
@@ -91,10 +93,69 @@ static void ik_task(void *pvParameters) {
     xQueueReceive(waypoint_queue, &target, portMAX_DELAY);
 
     angles = robot_inverse_kinematics(&robot, &target);
-
     if (!angles.valid) {
       // TODO: handle unreachable target
       continue;
+    }
+
+    xQueueSend(ik_queue, &angles, portMAX_DELAY);
+  }
+}
+
+static void trajectory_task(void *pvParameters) {
+  CartesianPoint_t target;
+  JointAngles_t angles;
+  // desired spacing between trajectory points
+  float s = 1.0f;
+
+  for (;;) {
+    xQueueReceive(waypoint_queue, &target, portMAX_DELAY);
+    // Trajectory generation
+    float tx = target.x;
+    float ty = target.y;
+    float tz = target.z;
+
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+
+    // Current angle of joints
+    float angle0 = calculate_angle(&robot.joints[0]);
+    float angle1 = calculate_angle(&robot.joints[1]);
+    float angle2 = calculate_angle(&robot.joints[2]);
+
+    // Current position of end-effector (forward kinematics)
+    x = (LINK_1 * cosf(angle1) + LINK_2 * cosf(angle1 + angle2)) * cosf(angle0);
+    y = (LINK_1 * cosf(angle1) + LINK_2 * cosf(angle1 + angle2)) * sinf(angle0);
+    z = LINK_2 * sinf(angle1) + LINK_2 * sinf(angle1 + angle2);
+
+    // Determine trajectory points (euclidean distance)
+    float dx = tx - x;
+    float dy = ty - y;
+    float dz = tz - z;
+
+    float l2_norm = sqrtf(dx * dx + dy * dy + dz * dz);
+
+    // Determine unit vector
+    float ux = dx / l2_norm;
+    float uy = dy / l2_norm;
+    float uz = dz / l2_norm;
+
+    // Determine number of points along trajectory line
+    int N = (int)ceilf(l2_norm / s);
+
+    // Generate point along trajectory
+    for (int i = 0; i < N; i++) {
+      float distance = i * s;
+
+      if (distance > l2_norm) {
+        distance = l2_norm;
+      }
+
+      CartesianPoint_t point;
+      point.x = x + ux * distance;
+      point.y = y + uy * distance;
+      point.z = z + uz * distance;
     }
 
     xQueueSend(ik_queue, &angles, portMAX_DELAY);
@@ -158,9 +219,10 @@ int main() {
   motion_complete_semphr = xSemaphoreCreateBinary();
 
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
-  xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
+  // xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
+  xTaskCreate(trajectory_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
   xTaskCreate(motor_task, "Motor", 1000, NULL, MOTOR_PRIORITY, NULL);
-  xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
+  // xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
 
   /* Start scheduler */
   vTaskStartScheduler();
