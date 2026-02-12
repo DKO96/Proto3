@@ -69,10 +69,12 @@ void motion_start(volatile MotionProfile_t *profile, TIM_TypeDef *TIMx,
   calculate_profile_shape(profile);
 
   /* Calculate initial_delay*/
-  profile->step_delay = calculate_initial_delay(profile);
+  // profile->step_delay = calculate_initial_delay(profile);
+  profile->step_delay = 999;
+  profile->state = MOTION_STATE_CONST;
 
   /* Update profile state */
-  profile->state = MOTION_STATE_ACCEL;
+  // profile->state = MOTION_STATE_ACCEL;
 
   /* Start timer and motion */
   TIMx->ARR = profile->step_delay;

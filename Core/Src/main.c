@@ -36,8 +36,17 @@ void TIM1_UP_TIM10_IRQHandler(void) {
 
   BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-  motion_process_step(&robot.motion);
-  TIM1->ARR = robot.motion.step_delay;
+  // for trapezoidal velocity profile (joint space)
+  // motion_process_step(&robot.motion);
+  // TIM1->ARR = robot.motion.step_delay;
+
+  robot.motion.current_step++;
+  if (robot.motion.current_step >= robot.motion.total_steps) {
+    robot.motion.state = MOTION_STATE_IDLE;
+    TIM1->CR1 &= ~TIM_CR1_CEN;
+    xSemaphoreGiveFromISR(motion_complete_semphr, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
 
   for (uint8_t i = 0; i < ROBOT_NUM_JOINTS; i++) {
     // stepper_sync_step(&robot.joints[i]);
@@ -104,9 +113,8 @@ static void ik_task(void *pvParameters) {
 
 static void trajectory_task(void *pvParameters) {
   CartesianPoint_t target;
-  JointAngles_t angles;
   // desired spacing between trajectory points
-  float s = 1.0f;
+  float s = 2.0f;
 
   for (;;) {
     xQueueReceive(waypoint_queue, &target, portMAX_DELAY);
@@ -156,9 +164,13 @@ static void trajectory_task(void *pvParameters) {
       point.x = x + ux * distance;
       point.y = y + uy * distance;
       point.z = z + uz * distance;
-    }
 
-    xQueueSend(ik_queue, &angles, portMAX_DELAY);
+      JointAngles_t angles = robot_inverse_kinematics(&robot, &point);
+
+      if (angles.valid) {
+        xQueueSend(ik_queue, &angles, portMAX_DELAY);
+      }
+    }
   }
 }
 
@@ -218,11 +230,13 @@ int main() {
 
   motion_complete_semphr = xSemaphoreCreateBinary();
 
+  TIM1->ARR = 999;
+
   xTaskCreate(waypoint_task, "Waypoint", 1000, NULL, WAYPOINT_PRIORITY, NULL);
   // xTaskCreate(ik_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
   xTaskCreate(trajectory_task, "IK", 1000, NULL, INV_KIN_PRIORITY, NULL);
   xTaskCreate(motor_task, "Motor", 1000, NULL, MOTOR_PRIORITY, NULL);
-  // xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
+  xTaskCreate(monitor_task, "Monitor", 1000, NULL, MONITOR_PRIORITY, NULL);
 
   /* Start scheduler */
   vTaskStartScheduler();

@@ -154,10 +154,10 @@ void robot_monitor(RobotHandle_t *robot) {
   printS("\r\n");
 
   printS("Joints target steps:        ");
-  printI(robot->joints[0].sync_numerator);
+  printI(robot->joints[0].position_steps);
   printS("    ");
-  printI(robot->joints[1].sync_numerator);
+  printI(robot->joints[1].position_steps);
   printS("    ");
-  printI(robot->joints[2].sync_numerator);
+  printI(robot->joints[2].position_steps);
   printS("\r\n");
 }
