@@ -1,8 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define M_PI 3.14159265358979323846
-
 /* Robot geometry [mm] */
 #define LINK_1 85.0f
 #define LINK_2 100.0f
@@ -11,7 +9,7 @@
 
 /* Motor configuration */
 #define STEPS_PER_REV 3200.0f
-#define ALPHA (2.0f * M_PI / STEPS_PER_REV)  // [radians]
+#define ALPHA (6.2831853f / STEPS_PER_REV)  // [radians]
 
 /* Motion profile */
 #define INITIAL_DELAY_CONST 0.676f

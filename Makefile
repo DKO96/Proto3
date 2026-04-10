@@ -26,9 +26,6 @@ C_SOURCES = \
     $(wildcard $(SRC_DIR)/*.c) \
     $(wildcard $(PERIPHERALS_DIR)/*.c) \
     $(wildcard $(HARDWARE_DIR)/*.c) \
-    $(wildcard $(FREERTOS_SRC)/*.c) \
-    $(FREERTOS_PORT)/port.c \
-    $(FREERTOS_MEM)/heap_4.c
 
 ASM_SOURCES = $(STARTUP_DIR)/startup_stm32f446re.s
 
@@ -37,7 +34,8 @@ ELF_FILE = $(BUILD_DIR)/firmware.elf
 BIN_FILE = $(BUILD_DIR)/firmware.bin
 
 # Compiler flags
-CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g -O0 \
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g -Os \
+         --specs=nano.specs \
          -DSTM32F446xx \
          -MMD -MP \
          -I$(INC_DIR) \
@@ -45,10 +43,6 @@ CFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -g -O0 \
          -I$(STARTUP_DIR) \
          -I$(PERIPHERALS_DIR) \
          -I$(HARDWARE_DIR) \
-         -I$(FREERTOS_DIR) \
-         -I$(FREERTOS_SRC)/include \
-         -I$(FREERTOS_PORT)
-
 
 LDFLAGS = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard -T$(STARTUP_DIR)/STM32F446RETX_FLASH.ld \
           --specs=nosys.specs -lc -lm -lnosys \
@@ -60,7 +54,7 @@ ASM_OBJECTS = $(patsubst %.s,$(BUILD_DIR)/%.o,$(notdir $(ASM_SOURCES)))
 OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 
 # vpath for source files
-vpath %.c $(SRC_DIR) $(STARTUP_DIR) $(PERIPHERALS_DIR) $(HARDWARE_DIR) $(FREERTOS_SRC) $(FREERTOS_PORT) $(FREERTOS_MEM)
+vpath %.c $(SRC_DIR) $(STARTUP_DIR) $(PERIPHERALS_DIR) $(HARDWARE_DIR) 
 vpath %.s $(STARTUP_DIR)
 
 # Default target

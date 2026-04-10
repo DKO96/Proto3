@@ -70,7 +70,7 @@ void motion_start(volatile MotionProfile_t *profile, TIM_TypeDef *TIMx,
 
   /* Calculate initial_delay*/
   // profile->step_delay = calculate_initial_delay(profile);
-  profile->step_delay = 999;
+  profile->step_delay = 9999;
   profile->state = MOTION_STATE_CONST;
 
   /* Update profile state */
